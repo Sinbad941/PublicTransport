@@ -1,0 +1,116 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'cpoo'
+version = '1.0.0'
+
+def targetJavaVersion = providers.gradleProperty('javaVersion').orElse('25').get().toInteger()
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['.']
+            exclude '**/*Test.java'
+            exclude '**/*UnitTest.java'
+            exclude '**/*DirectionTest.java'
+            exclude 'build/**', 'out/**', '.gradle/**'
+            include 'Architecture/**/*.java'
+            include 'Passager/**/*.java'
+            include 'Vehicule/**/*.java'
+            include 'Incidents/*.java'
+        }
+        resources {
+            srcDirs = []
+        }
+    }
+    test {
+        java {
+            srcDirs = ['Tests']
+            include '**/*.java'
+            exclude 'build/**', 'out/**', '.gradle/**'
+        }
+        resources {
+            srcDirs = []
+        }
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+application {
+    mainClass = 'Architecture.NetworkRunner'
+}
+
+tasks.named('run') {
+    standardInput = System.in
+}
+
+tasks.register('runEmpty', JavaExec) {
+    group = 'application'
+    description = 'Run NetworkRunner in empty mode'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'Architecture.NetworkRunner'
+    args '--empty'
+    standardInput = System.in
+}
+
+ext.legacyTestClasses = [
+    'CoordinateTest',
+    'LigneImplDirectionTest',
+    'LigneImplUnitTest',
+    'StationImplTest',
+    'StationImplUnitTest',
+    'TxtNetworkLoaderTest',
+    'ReseauTransportImplTest',
+    'PassengerTest',
+    'EtatTest',
+    'VehicleTest',
+    'VehicleStateTest',
+    'DirectionTest',
+    'VehicleTypeTest',
+    'BusTest',
+    'MetroTest',
+    'TramTest',
+    'IncidentTest',
+    'ActiveIncidentTest',
+    'IncidentsTypesTest'
+]
+
+def legacyTaskNames = legacyTestClasses.collect { className ->
+    def simpleName = className.substring(className.lastIndexOf('.') + 1)
+    def taskName = "legacyTest${simpleName}"
+    tasks.register(taskName, JavaExec) {
+        group = 'verification'
+        description = "Run legacy test ${className}"
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = className
+    }
+    taskName
+}
+
+tasks.register('legacyTest') {
+    group = 'verification'
+    description = 'Run all legacy tests implemented as main() methods'
+    dependsOn legacyTaskNames
+}
+
+tasks.named('test') {
+    enabled = false
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('legacyTest')
+}
